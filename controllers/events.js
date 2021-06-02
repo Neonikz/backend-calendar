@@ -1,0 +1,125 @@
+const { response } = require('express');
+const Event = require('../models/Event');
+
+const getEvent = async( req, res = response) => {
+
+    const events = await Event.find()
+                              .populate('user','name');
+    res.json({
+        ok:true,
+        events
+    });
+}
+
+const createEvent = async( req, res = response) => {
+
+    //Verificar que tenga el evento
+    const event = new Event( req.body );
+
+    try{
+        event.user = req.uid;
+
+        const eventSave = await event.save();
+        
+        res.json({
+            ok:true,
+            event:eventSave
+        })
+
+    }catch(error){
+        console.log(error);
+        res.status(500).json({
+            ok:false,
+            msg:'Hable con el administrador'
+        });
+    }
+}
+
+const actEvent = async( req, res = response) => {
+
+    const eventId = req.params.id;
+
+    try {
+
+        const event = await Event.findById( eventId );
+        const uid = req.uid;
+
+        if ( !event ) {
+            return res.status(404).json({
+                ok:false,
+                msg: 'El evento no existe por ese id'
+            });
+        }
+
+        if ( event.user.toString() !== uid ) {
+            return res.status(401).json({
+                ok:false,
+                msg:'No tiene privilegio de editar este evento'
+            })   
+        }
+
+        const newEvent = {
+            ...req.body,
+            user:uid
+        }
+
+        const eventAct = await Event.findByIdAndUpdate( eventId, newEvent, { new:true } );
+        
+        res.json({
+            ok: true,
+            event: eventAct
+        });
+        
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ 
+            ok:false,
+            msg:'Hable con el administrador'
+        })
+    };
+}
+
+const deleteEvent = async( req, res = response) => {
+
+    const eventId = req.params.id;
+
+    try {
+
+        const event = await Event.findById( eventId );
+        const uid = req.uid;
+
+        if ( !event ) {
+            return res.status(404).json({
+                ok:false,
+                msg: 'El evento no existe por ese id'
+            });
+        }
+
+        if ( event.user.toString() !== uid ) {
+            return res.status(401).json({
+                ok:false,
+                msg:'No tiene privilegio de eliminar este evento'
+            })   
+        }
+
+        await Event.findByIdAndDelete( eventId );
+        
+        res.json({ok: true});
+        
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ 
+            ok:false,
+            msg:'Hable con el administrador'
+        })
+    };
+}
+
+
+module.exports = {
+    getEvent,
+    createEvent,
+    actEvent,
+    deleteEvent,
+}
+
